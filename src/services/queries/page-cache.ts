@@ -12,5 +12,5 @@ export const getCachedPage = (route: string) => {
 export const setCachedPage = (route: string, page: string) => {
 	if (!CACHE_ROUTES.includes(route)) return null;
 
-	return client.set(pageCacheKey(route), page, '2s');
+	return client.set(pageCacheKey(route), page, 'EX', 2);
 };
