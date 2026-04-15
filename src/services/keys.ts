@@ -4,10 +4,12 @@ export const usersKey = (userId: string): string => `users#${userId}`;
 
 export const sessionsKey = (sessionId: string): string => `sessions#${sessionId}`;
 
-export const itemsKey = (itemId: string): string => `items#${itemId}`;
-
 export const usernamesUniqueKey = () => 'usernames:unique';
 
 export const userLikesKey = (userId: string) => `user:likes#${userId}`;
 
 export const usernamesKey = () => 'usernames';
+
+// Items
+export const itemsKey = (itemId: string): string => `items#${itemId}`;
+export const itemsByViewsKey = () => 'items:views';
