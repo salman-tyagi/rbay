@@ -1,13 +1,33 @@
 import { DateTime } from 'luxon';
 
 import type { CreateBidAttrs, Bid } from '$services/types';
-import { itemBidHistoryKey } from '$services/keys';
+import { itemBidHistoryKey, itemsKey } from '$services/keys';
 import { client } from '$services/redis';
+import { getItem } from './items';
 
 export const createBid = async (attrs: CreateBidAttrs) => {
+	const item = await getItem(attrs.itemId);
+
+	if (!item) throw new Error('Item does not exist');
+
+	if (item.price >= attrs.amount) throw Error('Bid too low');
+
+	if (item.endingAt.toMillis() - Date.now() < 0) throw Error('Item closed to bidding');
+
 	const serializedBid = serializeHistory(attrs.amount, attrs.createdAt.toMillis());
 
-	return client.rpush(itemBidHistoryKey(attrs.itemId), serializedBid);
+	return Promise.all([
+		client.rpush(itemBidHistoryKey(attrs.itemId), serializedBid),
+		client.hset(
+			itemsKey(item.id),
+			'bids',
+			item.bids + 1,
+			'price',
+			attrs.amount,
+			'highestBidUser',
+			attrs.userId
+		)
+	]);
 };
 
 export const getBidHistory = async (itemId: string, offset = 0, count = 10): Promise<Bid[]> => {
