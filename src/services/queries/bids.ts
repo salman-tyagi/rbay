@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon';
+import Redis from 'ioredis';
 
 import type { CreateBidAttrs, Bid } from '$services/types';
 import { itemBidHistoryKey, itemsKey } from '$services/keys';
@@ -6,6 +7,14 @@ import { client } from '$services/redis';
 import { getItem } from './items';
 
 export const createBid = async (attrs: CreateBidAttrs) => {
+	const isolateClient = new Redis({
+		host: process.env.REDIS_HOST,
+		port: +process.env.REDIS_PORT,
+		password: process.env.REDIS_PW
+	});
+
+	await isolateClient.watch(itemsKey(attrs.itemId));
+
 	const item = await getItem(attrs.itemId);
 
 	if (!item) throw new Error('Item does not exist');
@@ -16,18 +25,19 @@ export const createBid = async (attrs: CreateBidAttrs) => {
 
 	const serializedBid = serializeHistory(attrs.amount, attrs.createdAt.toMillis());
 
-	return Promise.all([
-		client.rpush(itemBidHistoryKey(attrs.itemId), serializedBid),
-		client.hset(
+	isolateClient
+		.multi()
+		.rpush(itemBidHistoryKey(attrs.itemId), serializedBid)
+		.hset(
 			itemsKey(item.id),
 			'bids',
 			item.bids + 1,
 			'price',
 			attrs.amount,
-			'highestBidUser',
+			'highestBidUserId',
 			attrs.userId
 		)
-	]);
+		.exec();
 };
 
 export const getBidHistory = async (itemId: string, offset = 0, count = 10): Promise<Bid[]> => {
