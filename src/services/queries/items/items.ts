@@ -40,7 +40,7 @@ export const createItem = async (attrs: CreateItemAttrs, userId: string) => {
 		client.hset(itemsKey(itemId), serialize(attrs)),
 		client.zadd(itemsByViewsKey(), 0, itemId),
 		client.zadd(itemsByEndingAtKey(), attrs.endingAt.toMillis(), itemId),
-		client.zadd(itemsByPriceKey(), attrs.price, itemId)
+		client.zadd(itemsByPriceKey(), 0, itemId)
 	];
 
 	await Promise.all(commands);

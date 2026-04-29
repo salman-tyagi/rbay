@@ -3,9 +3,36 @@ import { client } from '$services/redis';
 import { deserialize } from './deserialize';
 
 export const itemsByPrice = async (order: 'DESC' | 'ASC' = 'DESC', offset = 0, count = 10) => {
-	const ranges = await client.zrange(itemsByPriceKey(), '-inf', '+inf', 'BYSCORE');
+	let results: any = await client.sort(
+		itemsByPriceKey(),
+		'BY',
+		'nosort',
+		'GET',
+		'#',
+		'GET',
+		`${itemsKey('*')}->name`,
+		'GET',
+		`${itemsKey('*')}->price`,
+		'GET',
+		`${itemsKey('*')}->views`,
+		'GET',
+		`${itemsKey('*')}->imageUrl`,
+		'GET',
+		`${itemsKey('*')}->endingAt`,
+		'LIMIT',
+		offset,
+		count,
+		order
+	);
 
-	const items = await Promise.all(ranges.map((item) => client.hgetall(itemsKey(item))));
+	const items = [];
+	while (results.length) {
+		const [id, name, price, views, imageUrl, endingAt, ...rest] = results;
+		const item = deserialize(id, { name, price, views, imageUrl, endingAt });
+		items.push(item);
 
-	return items.map((item, i) => deserialize(ranges[i], item));
+		results = rest;
+	}
+
+	return items;
 };

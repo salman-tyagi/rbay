@@ -2,7 +2,7 @@ import { DateTime } from 'luxon';
 import Redis from 'ioredis';
 
 import type { CreateBidAttrs, Bid } from '$services/types';
-import { itemBidHistoryKey, itemsKey } from '$services/keys';
+import { itemBidHistoryKey, itemsKey, itemsByPriceKey } from '$services/keys';
 import { client } from '$services/redis';
 import { getItem } from './items';
 
@@ -37,6 +37,7 @@ export const createBid = async (attrs: CreateBidAttrs) => {
 			'highestBidUserId',
 			attrs.userId
 		)
+		.zadd(itemsByPriceKey(), attrs.amount, item.id)
 		.exec();
 };
 
