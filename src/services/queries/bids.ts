@@ -6,9 +6,17 @@ import { itemBidHistoryKey, itemsKey, itemsByPriceKey } from '$services/keys';
 import { client, withLock } from '$services/redis';
 import { getItem } from './items';
 
+// const pause = (duration: number) => {
+// 	return new Promise((resolve) => {
+// 		setTimeout(resolve, duration);
+// 	});
+// };
+
 export const createBid = async (attrs: CreateBidAttrs) => {
-	return withLock(attrs.itemId, async () => {
+	return withLock(attrs.itemId, async (signal: any) => {
 		const item = await getItem(attrs.itemId);
+
+		// await pause(5000);
 
 		if (!item) throw new Error('Item does not exist');
 
@@ -17,6 +25,10 @@ export const createBid = async (attrs: CreateBidAttrs) => {
 		if (item.endingAt.toMillis() - Date.now() < 0) throw Error('Item closed to bidding');
 
 		const serializedBid = serializeHistory(attrs.amount, attrs.createdAt.toMillis());
+
+		if (signal.expired) {
+			throw Error('Lock expired, please try again');
+		}
 
 		return Promise.all([
 			client.rpush(itemBidHistoryKey(attrs.itemId), serializedBid),

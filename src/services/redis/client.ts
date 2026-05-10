@@ -50,8 +50,8 @@ client.defineCommand('incrementView', {
 client.defineCommand('unlock', {
 	numberOfKeys: 1,
 	lua: `
-		if redis.call('GET', key) == ARGV[1] then
-			return redis.call('DEL',  key)
+		if redis.call('GET', KEYS[1]) == ARGV[1] then
+			return redis.call('DEL',  KEYS[1])
 		end
 	`
 });
