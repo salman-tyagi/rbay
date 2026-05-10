@@ -9,6 +9,7 @@ interface CustomRedis extends Redis {
 		itemId: string,
 		userId: string
 	): Promise<void>;
+	unlock(key: string, value: string): Promise<any>;
 }
 
 export const client = new Redis({
@@ -42,6 +43,15 @@ client.defineCommand('incrementView', {
 		if inserted == 1 then
 			redis.call('HINCRBY', itemsKey, 'views', 1)
 			redis.call('ZINCRBY', itemsByViewsKey, 1, itemId)
+		end
+	`
+});
+
+client.defineCommand('unlock', {
+	numberOfKeys: 1,
+	lua: `
+		if redis.call('GET', key) == ARGV[1] then
+			return redis.call('DEL',  key)
 		end
 	`
 });

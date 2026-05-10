@@ -1,44 +1,70 @@
 import { DateTime } from 'luxon';
-import Redis from 'ioredis';
+// import Redis from 'ioredis';
 
 import type { CreateBidAttrs, Bid } from '$services/types';
 import { itemBidHistoryKey, itemsKey, itemsByPriceKey } from '$services/keys';
-import { client } from '$services/redis';
+import { client, withLock } from '$services/redis';
 import { getItem } from './items';
 
 export const createBid = async (attrs: CreateBidAttrs) => {
-	const isolateClient = new Redis({
-		host: process.env.REDIS_HOST,
-		port: +process.env.REDIS_PORT,
-		password: process.env.REDIS_PW
+	return withLock(attrs.itemId, async () => {
+		const item = await getItem(attrs.itemId);
+
+		if (!item) throw new Error('Item does not exist');
+
+		if (item.price >= attrs.amount) throw Error('Bid too low');
+
+		if (item.endingAt.toMillis() - Date.now() < 0) throw Error('Item closed to bidding');
+
+		const serializedBid = serializeHistory(attrs.amount, attrs.createdAt.toMillis());
+
+		return Promise.all([
+			client.rpush(itemBidHistoryKey(attrs.itemId), serializedBid),
+			client.hset(
+				itemsKey(item.id),
+				'bids',
+				item.bids + 1,
+				'price',
+				attrs.amount,
+				'highestBidUserId',
+				attrs.userId
+			),
+			client.zadd(itemsByPriceKey(), attrs.amount, item.id)
+		]);
 	});
 
-	await isolateClient.watch(itemsKey(attrs.itemId));
+	// const isolateClient = new Redis({
+	// 	host: process.env.REDIS_HOST,
+	// 	port: +process.env.REDIS_PORT,
+	// 	password: process.env.REDIS_PW
+	// });
 
-	const item = await getItem(attrs.itemId);
+	// await isolateClient.watch(itemsKey(attrs.itemId));
 
-	if (!item) throw new Error('Item does not exist');
+	// const item = await getItem(attrs.itemId);
 
-	if (item.price >= attrs.amount) throw Error('Bid too low');
+	// if (!item) throw new Error('Item does not exist');
 
-	if (item.endingAt.toMillis() - Date.now() < 0) throw Error('Item closed to bidding');
+	// if (item.price >= attrs.amount) throw Error('Bid too low');
 
-	const serializedBid = serializeHistory(attrs.amount, attrs.createdAt.toMillis());
+	// if (item.endingAt.toMillis() - Date.now() < 0) throw Error('Item closed to bidding');
 
-	isolateClient
-		.multi()
-		.rpush(itemBidHistoryKey(attrs.itemId), serializedBid)
-		.hset(
-			itemsKey(item.id),
-			'bids',
-			item.bids + 1,
-			'price',
-			attrs.amount,
-			'highestBidUserId',
-			attrs.userId
-		)
-		.zadd(itemsByPriceKey(), attrs.amount, item.id)
-		.exec();
+	// const serializedBid = serializeHistory(attrs.amount, attrs.createdAt.toMillis());
+
+	// isolateClient
+	// 	.multi()
+	// 	.rpush(itemBidHistoryKey(attrs.itemId), serializedBid)
+	// 	.hset(
+	// 		itemsKey(item.id),
+	// 		'bids',
+	// 		item.bids + 1,
+	// 		'price',
+	// 		attrs.amount,
+	// 		'highestBidUserId',
+	// 		attrs.userId
+	// 	)
+	// 	.zadd(itemsByPriceKey(), attrs.amount, item.id)
+	// 	.exec();
 };
 
 export const getBidHistory = async (itemId: string, offset = 0, count = 10): Promise<Bid[]> => {
