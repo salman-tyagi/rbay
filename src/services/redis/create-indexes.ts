@@ -19,7 +19,25 @@ export const createIndexes = async () => {
 		'SCHEMA',
 		'name',
 		'TEXT',
+		'SORTABLE',
 		'description',
-		'TEXT'
+		'TEXT',
+		'ownerId',
+		'TAG',
+		'price',
+		'NUMERIC',
+		'SORTABLE',
+		'endingAt',
+		'NUMERIC',
+		'SORTABLE',
+		'bids',
+		'NUMERIC',
+		'SORTABLE',
+		'views',
+		'NUMERIC',
+		'SORTABLE',
+		'likes',
+		'NUMERIC',
+		'SORTABLE'
 	);
 };

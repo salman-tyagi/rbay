@@ -14,14 +14,9 @@ export const searchItems = async (term: string, size: number = 5) => {
 		return [];
 	}
 
-	let results = (await client.call(
-		'FT.SEARCH',
-		itemsIndexKey(),
-		cleaned,
-		'LIMIT',
-		'0',
-		size
-	)) as any;
+	const query = `(@name:(${cleaned}) => { $weight: 5.0 }) | (@description:(${cleaned}))`;
+
+	let results = (await client.call('FT.SEARCH', itemsIndexKey(), query, 'LIMIT', 0, size)) as any;
 
 	const [, ...rest] = results;
 
@@ -40,7 +35,7 @@ export const searchItems = async (term: string, size: number = 5) => {
 			obj[key] = value;
 		}
 
-		items.push(deserialize(id, obj));
+		items.push(deserialize(id.replace('items#', ''), obj));
 	}
 
 	return items;
