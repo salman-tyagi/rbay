@@ -1,4 +1,5 @@
 import Redis from 'ioredis';
+import { createIndexes } from './create-indexes';
 
 interface CustomRedis extends Redis {
 	addOneAndStore(key: string, value: number): Promise<any>;
@@ -17,6 +18,14 @@ export const client = new Redis({
 	port: +process.env.REDIS_PORT,
 	password: process.env.REDIS_PW
 }) as CustomRedis;
+
+client.on('connect', async () => {
+	try {
+		await createIndexes();
+	} catch (err) {
+		console.log(err);
+	}
+});
 
 client.defineCommand('addOneAndStore', {
 	numberOfKeys: 1,
